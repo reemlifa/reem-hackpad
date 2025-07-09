@@ -1,0 +1,5 @@
+﻿Designator,Footprint,Quantity,Value,LCSC Part #
+"D10, D11, D3, D4, D5, D6, D8, D9",D_DO-201AE_P3.81mm_Vertical_KathodeUp,8,D,
+"SW1, SW10, SW11, SW2, SW3, SW5, SW7, SW9",SW_Cherry_MX_1.00u_PCB,8,SW_Push,
+SW4,RotaryEncoder_Alps_EC11E_Vertical_H20mm_CircularMountingHoles,1,RotaryEncoder,
+U1,XIAO-RP2040-DIP,1,XIAO-RP2040-DIP,
