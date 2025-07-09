@@ -1,0 +1,96 @@
+import board
+import digitalio
+import time
+import adafruit_rotaryio
+from adafruit_debouncer import Debouncer
+from adafruit_matrix_keypad import Matrix_Keypad
+import usb_hid
+from adafruit_hid.keyboard import Keyboard
+from adafruit_hid.keycode import Keycode
+
+# --- PIN DEFINITIONS (YOU MUST CHANGE THESE TO MATCH YOUR WIRING!) ---
+
+# This assumes a 3x4 matrix for the 10 switches. Adjust rows/columns as needed.
+# Pins connected to the columns of the switch matrix.
+col_pins = [board.D1, board.D2, board.D3]
+
+# Pins connected to the rows of the switch matrix.
+row_pins = [board.D7, board.D8, board.D9, board.D10]
+
+# Pins for the Alps EC11E Rotary Encoder.
+encoder_pin_a = board.A0  # Encoder 'A' terminal
+encoder_pin_b = board.A1  # Encoder 'B' terminal
+encoder_switch_pin = board.A2  # Encoder's built-in switch
+
+# --- KEYMAP DEFINITION (CUSTOMIZE YOUR LAYOUT HERE) ---
+
+# Define the keycodes for each switch in the matrix.
+# The layout matches the row and column pin order. Use 'None' for empty spots.
+# Example: Using Function keys, Media keys, and a letter.
+keymap = (
+    (Keycode.F1,  Keycode.F2,    Keycode.F3),
+    (Keycode.F4,  Keycode.F5,    Keycode.F6),
+    (Keycode.F7,  Keycode.F8,    Keycode.F9),
+    (Keycode.F10, Keycode.F11,   Keycode.A)
+)
+
+# --- DEVICE INITIALIZATION ---
+
+# Setup HID keyboard device.
+try:
+    keyboard = Keyboard(usb_hid.devices)
+except Exception as e:
+    print(f"Error initializing keyboard: {e}")
+    # If the keyboard fails, the rest of the code is pointless.
+    # You might want to blink an LED to signal an error.
+    while True:
+        pass
+
+# Setup the keyboard matrix.
+cols = [digitalio.DigitalInOut(pin) for pin in col_pins]
+rows = [digitalio.DigitalInOut(pin) for pin in row_pins]
+keypad = Matrix_Keypad(rows, cols, keymap)
+
+# Setup the rotary encoder.
+encoder = adafruit_rotaryio.IncrementalEncoder(encoder_pin_a, encoder_pin_b)
+
+# Setup the encoder's push-button switch.
+encoder_switch_io = digitalio.DigitalInOut(encoder_switch_pin)
+encoder_switch_io.direction = digitalio.Direction.INPUT
+encoder_switch_io.pull = digitalio.Pull.UP
+encoder_switch = Debouncer(encoder_switch_io)
+
+# --- MAIN LOOP ---
+
+last_encoder_pos = encoder.position
+print("Firmware initialized and running...")
+
+while True:
+    # 1. Scan the keyboard matrix for pressed keys.
+    keys_pressed = keypad.pressed_keys
+    if keys_pressed:
+        for key in keys_pressed:
+            print(f"Matrix Key Pressed: {key}")
+            keyboard.press(key)
+        # Release all keys after processing to prevent sticky keys.
+        keyboard.release_all()
+
+    # 2. Check the rotary encoder for rotation.
+    current_encoder_pos = encoder.position
+    if current_encoder_pos > last_encoder_pos:  # Clockwise rotation
+        print("Encoder: Clockwise")
+        keyboard.send(Keycode.VOLUME_INCREMENT) # Example: Volume Up
+        last_encoder_pos = current_encoder_pos
+    elif current_encoder_pos < last_encoder_pos:  # Counter-clockwise rotation
+        print("Encoder: Counter-Clockwise")
+        keyboard.send(Keycode.VOLUME_DECREMENT) # Example: Volume Down
+        last_encoder_pos = current_encoder_pos
+
+    # 3. Check the encoder's push-button.
+    encoder_switch.update()
+    if encoder_switch.fell:  # 'fell' detects a press (from high to low)
+        print("Encoder Switch Pressed")
+        keyboard.send(Keycode.MUTE) # Example: Mute audio
+
+    # A small delay to keep things responsive without overwhelming the CPU.
+    time.sleep(0.01)
